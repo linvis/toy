@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # Pw @ 2018-01-31 21:31:54
 
+
 from socket import *
 
 
@@ -14,33 +15,33 @@ class chat_client:
         self.port = PORT
         self.addr = (self.host, self.port)
 
-    def connect(self):
+    def chat_connect(self):
         self.socket = socket(AF_INET, SOCK_STREAM)
         self.socket.connect(self.addr)
 
-    def send(self, data):
+    def chat_send(self, data):
         if not data:
             print("data to send is none")
         else:
-            self.socket.send(data)
+            self.socket.send(data.encode('utf-8'))
 
-    def recv(self):
+    def chat_recv(self):
         self.recv_data = self.socket.recv(BUFSIZE)
-        print(self.recv_data)
+        print(self.recv_data.decode('utf-8'))
 
     def close(self):
         self.socket.close()
 
 
-if __name__ == "main":
+if __name__ == "__main__":
     client = chat_client()
-    client.connect()
+    client.chat_connect()
     while(1):
-        data = input()
-        client.send(data)
-        client.recv()
+        data = input('> ')
+        client.chat_send(data)
+        client.chat_recv()
 
-    client.close()
+    client.chat_close()
 
 
 
