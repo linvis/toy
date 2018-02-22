@@ -6,7 +6,7 @@ from socket import *
 
 
 HOST = 'localhost'
-PORT = 21356
+PORT = 21357
 BUFSIZE = 1024
 
 class chat_client:

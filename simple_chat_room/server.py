@@ -4,8 +4,69 @@ import queue
 
 
 HOST = 'localhost'
-PORT = 21356
+PORT = 21357
 BUFSIZE = 1024
+
+message_queue = {}
+fd_to_socket = {}
+timeout = 10
+
+def server_init(host, port):
+    addr = (host, port)
+    srv_socket = socket(AF_INET, SOCK_STREAM)
+    srv_socket.bind(addr)
+    srv_socket.listen(100)
+
+    return srv_socket
+
+def server_epoll_init(srv_socket):
+    srv_epoll = select.epoll()
+    srv_epoll.register(srv_socket.fileno(), select.EPOLLIN)
+    fd_to_socket[srv_socket.fileno()] = srv_socket
+
+    return srv_epoll
+
+def server_epoll_run(srv_socket, srv_epoll):
+    events = srv_epoll.poll(timeout)
+    if not events:
+        print("srv_epoll is timeout, requery")
+        return
+    for fd, event in events:
+        e_socket = fd_to_socket[fd]
+        if event & select.EPOLLIN:
+            if e_socket == srv_socket:
+                connection, address = srv_socket.accept()
+                srv_epoll.register(connection.fileno(), select.EPOLLIN)
+                fd_to_socket[connection.fileno()] = connection
+                message_queue[connection] = queue.Queue()
+            else:
+                data = e_socket.recv(BUFSIZE)
+                message_queue[e_socket].put(data)
+                srv_epoll.modify(fd, select.EPOLLOUT)
+        elif event & select.EPOLLOUT:
+            try:
+                msg = message_queue[e_socket].get_nowait()
+            except queue.Empty:
+                print("Empty queue")
+                srv_epoll.modify(fd, select.EPOLLIN)
+            else:
+                for socket in fd_to_socket.values():
+                    if socket != srv_socket:
+                        socket.send(msg)
+                    # e_socket.send(msg)
+
+                # for e_fd in fd_to_socket:
+                    # fd_to_socket[e_fd].send(msg)
+                # e_socket.send(msg)
+        elif event & select.EPOLLHUP:
+            srv_epoll.unregister(fd)
+            fd_to_socket[fd].close()
+            del fd_to_socket[fd]
+
+def server_close(s_socket, s_epoll):
+    s_epoll.unregister(s_socket.fileno())
+    s_epoll.close()
+    s_socket.close()
 
 class chat_server:
     def __init__(self):
@@ -61,7 +122,9 @@ class chat_server:
                     print("Empty queue")
                     self.srv_epoll.modify(fd, select.EPOLLIN)
                 else:
-                    e_socket.send(msg)
+                    for e_fd in self.fd_to_socket:
+                        self.fd_to_socket[e_fd].send(msg)
+                    # e_socket.send(msg)
             elif event & select.EPOLLHUP:
                 self.srv_epoll.unregister(fd)
                 self.fd_to_socket[fd].close()
@@ -75,12 +138,11 @@ class chat_server:
 
 
 if __name__ == "__main__":
-    server = chat_server()
-    server.chat_listen()
-    server.chat_epoll_init()
+    srv_socket = server_init(HOST, PORT)
+    srv_epoll = server_epoll_init(srv_socket)
 
     while True:
-        server.chat_epoll_run()
+        server_epoll_run(srv_socket, srv_epoll)
 
-    self.chat_close()
+    server_close(srv_socket, srv_epoll)
 
