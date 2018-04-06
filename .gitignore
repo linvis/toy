@@ -6,6 +6,7 @@ __pycache__/
 
 # C extensions
 *.so
+*.o
 
 # Distribution / packaging
 .Python
@@ -104,3 +105,9 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+*.dSYM
